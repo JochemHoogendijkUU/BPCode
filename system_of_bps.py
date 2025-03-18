@@ -5,6 +5,13 @@ import numpy as np
 from math import exp
 import matplotlib.pyplot as plt
 
+# Function hierarchy in the code
+# 1. Main function is ApproximateSolution, which calls GenerateTree several times
+# 2. GenerateTree calls GenerateSubTree several times while growing the random tree
+# 3. GenerateSubTree calls GenerateLevel1 GenerateLevel2 several times when building a subtree component
+# 4. TreeFactor computes the associated value of a subtree
+# 5. BinSearch tree is a binary search in the tree that looks up the value associated to a specific point in time.
+
 def ApproximateSolution(rng, x, Ntrees, t_interval, type_dict):
     # Takes:
     # - x:          an m-dimensional vector taking values in [0, \infty)^m
