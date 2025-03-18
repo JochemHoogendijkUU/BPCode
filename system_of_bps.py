@@ -21,6 +21,7 @@ def ApproximateSolution(rng, x, Ntrees, t_interval, type_dict):
     #   - Return a sequence of vectors indexed by time
 
     t_cutoff = t_interval[-1]
+    alpha_cutoff = 1000000
     m = len(x)
 
     #convert coefficients
@@ -31,7 +32,7 @@ def ApproximateSolution(rng, x, Ntrees, t_interval, type_dict):
     u = []
     for k in range(1, m + 1):
         u_k = []
-        trees_k = [GenerateTree(rng, k, t_cutoff, l1_types, l2_types, sol_type_dict) for n in range(Ntrees)]
+        trees_k = [GenerateTree(rng, k, t_cutoff, alpha_cutoff, l1_types, l2_types, sol_type_dict) for n in range(Ntrees)]
         for t in t_interval:
             u_k_t = 0
             for tree_k in trees_k:
@@ -63,16 +64,17 @@ def TypesAtX(x, l1_types, l2_types, type_dict):
         transformed_type_dict[k] = new_coeff
     return transformed_type_dict
 
-def GenerateTree(rng, component, t_cutoff, l1_types, l2_types, coef):
+def GenerateTree(rng, component, t_cutoff, alpha_cutoff, l1_types, l2_types, coef):
     #Specifications:
     #
     # Takes:
-    # - rng:        python random number generator
-    # - component:  The starting root component
-    # - t_cutoff:   The maximal time value up to which we want to grow the tree     
-    # - l1_types:   -----
-    # - l2_types:   -----   
-    # - coef:       A dictionary which tracks all the factors associated to each type. Note that x is included in this already
+    # - rng:            python random number generator
+    # - component:      The starting root component
+    # - t_cutoff:       The maximal time value up to which we want to grow the tree
+    # - alpha_cutoff:   the maximum level-1 mass we allow
+    # - l1_types:       -----
+    # - l2_types:       -----   
+    # - coef:           A dictionary which tracks all the factors associated to each type. Note that x is included in this already
 
     # Returns:
     # - a list of tuples of size 2 which gives all the times at which a tree value changes
@@ -90,6 +92,8 @@ def GenerateTree(rng, component, t_cutoff, l1_types, l2_types, coef):
     res = [(t, tree_value)]
 
     while(t < t_cutoff):
+        if(sum(tree_alpha) > alpha_cutoff):
+            break
         #Select point in time when subtree is added
         t += rng.expovariate(1.0/sum(tree_alpha))
         if(t > t_cutoff):
@@ -99,7 +103,7 @@ def GenerateTree(rng, component, t_cutoff, l1_types, l2_types, coef):
         l2_sub_root = Samplel2SubRoot(rng, tree_alpha, l2_types)
         added_types[l2_sub_root] += 1
         #Spawn subtree from level 2 type, increase tree alpha
-        tree_alpha = GenerateSubTree(rng, tree_alpha, added_types, l2_sub_root, t, l1_types, l2_types)
+        tree_alpha = GenerateSubTree(rng, tree_alpha, added_types, l2_sub_root, t, alpha_cutoff, l1_types, l2_types)
         #Compute the total tree factor from the subtree and multiply with current one
         tree_value *= TreeFactor(added_types, coef)
         res.append((t, tree_value))
@@ -119,16 +123,17 @@ def Samplel2SubRoot(rng, tree_alpha, l2_types):
     res = rng.choice(l2_types[pre_type[0] - 1])
     return res
 
-def GenerateSubTree(rng, tree_alpha, new_types, root_type, t, l1_types, l2_types):
+def GenerateSubTree(rng, tree_alpha, new_types, root_type, t, alpha_cutoff, l1_types, l2_types):
     # Takes:
-    # - rng:        the numpy random number generator
-    # - tree_alpha: a list which contains the sum of all alpha vectors in the tree 
-    # - new_types:  a dictionary which tracks the number of types
-    # - time:       the time parameter
-    # - l1_types:   a list of lists of tuples that contains all possible level 2 types
-    #               where list i contains all types with first index i
-    # - l2_types:   a list of lists of tuples that contains all possible level 2 types
-    #               where list i contains all types with first index i
+    # - rng:            the numpy random number generator
+    # - tree_alpha:     a list which contains the sum of all alpha vectors in the tree 
+    # - new_types:      a dictionary which tracks the number of types
+    # - time:           the time parameter
+    # - alpha_cutoff:   maximum level 1 mass in the tree
+    # - l1_types:       a list of lists of tuples that contains all possible level 2 types
+    #                   where list i contains all types with first index i
+    # - l2_types:       a list of lists of tuples that contains all possible level 2 types
+    #                   where list i contains all types with first index i
 
     #Modifies:
     # - new_trees to add the new_types
@@ -142,6 +147,8 @@ def GenerateSubTree(rng, tree_alpha, new_types, root_type, t, l1_types, l2_types
     l2q.append(root_type)
     new_types[root_type] += 1
     while(l1q or l2q):
+        if(sum(tree_alpha) > alpha_cutoff):
+            break
         # Generate level 1 types
         while(l2q):
             top = l2q.popleft()
@@ -220,7 +227,7 @@ if __name__ == "__main__":
     rng = Random()
     rng.seed(1)
 
-    N_trees = 100000
+    N_trees = 5120000
     times = np.linspace(0, 0.2, 20)
 
     # Test case 1 with the following initial condition and nonlinearity:
@@ -242,15 +249,15 @@ if __name__ == "__main__":
     test_1_x = (1, 1)
     test_1_u = ApproximateSolution(rng, test_1_x, N_trees, times, t1_td)
 
-    fig, ax = plt.subplots()
+    #fig, ax = plt.subplots()
 
-    ax.plot(times, test_1_u[0])
-    ax.plot(times, test_1_u[1])
+    #ax.plot(times, test_1_u[0])
+    #ax.plot(times, test_1_u[1])
 
-    ax.set_xlabel('t')
-    ax.set_ylabel('u_1(., (1, 1))')
-    ax.set_title('Plot of u_1(. (1, 1))')
-    plt.show()
+    #ax.set_xlabel('t')
+    #ax.set_ylabel('u_1(., (1, 1))')
+    #ax.set_title('Plot of u_1(. (1, 1))')
+    #plt.show()
     # We can't really plot a 2 by 2 function, so we will have to be content with either coordinate
     
     # Test case 2 with the following initial condition and nonlinearity:
