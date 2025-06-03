@@ -1,0 +1,2 @@
+# Description
+This repository contains example code based on the third algorithm described in the paper "A dimension-efficient Monte Carlo Method for Systems of First-Order Conservation PDEs" by Jochem Hoogendijk, Ivan Kryven and Mike de Vries. The implementation as well as extensive comments are available in the file `system_of_bps.py`. Some example tests that reproduce some of the plots of the same paper are available in the file `tests.py`.
